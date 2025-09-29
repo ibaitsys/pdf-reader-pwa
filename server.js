@@ -1,65 +1,77 @@
-const http = require('http');
-const fs = require('fs');
+const express = require('express');
 const path = require('path');
+const fs = require('fs');
 
-const PORT = 3000;
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-const MIME_TYPES = {
-    '.html': 'text/html',
-    '.js': 'text/javascript',
-    '.css': 'text/css',
-    '.json': 'application/json',
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.svg': 'image/svg+xml',
-    '.wav': 'audio/wav',
-    '.mp4': 'video/mp4',
-    '.woff': 'application/font-woff',
-    '.ttf': 'application/font-ttf',
-    '.eot': 'application/vnd.ms-fontobject',
-    '.otf': 'application/font-otf',
-    '.wasm': 'application/wasm',
-    '.pdf': 'application/pdf',
-    '.ico': 'image/x-icon'
-};
+// Middleware para log de requisições
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+});
 
-const server = http.createServer((req, res) => {
-    console.log(`Request for ${req.url}`);
-    
-    // Handle root URL
-    let filePath = '.' + req.url;
-    if (filePath === './') {
-        filePath = './index.html';
-    }
-
-    // Get the file extension
-    const extname = String(path.extname(filePath)).toLowerCase();
-    const contentType = MIME_TYPES[extname] || 'application/octet-stream';
-
-    // Read the file
-    fs.readFile(filePath, (error, content) => {
-        if (error) {
-            if (error.code === 'ENOENT') {
-                // Page not found
-                fs.readFile('./404.html', (error, content) => {
-                    res.writeHead(404, { 'Content-Type': 'text/html' });
-                    res.end('404 Not Found', 'utf-8');
-                });
-            } else {
-                // Server error
-                res.writeHead(500);
-                res.end('Sorry, check with the site admin for error: ' + error.code + ' ..\n');
-            }
-        } else {
-            // Success
-            res.writeHead(200, { 'Content-Type': contentType, 'Access-Control-Allow-Origin': '*' });
-            res.end(content, 'utf-8');
+// Configuração para servir arquivos estáticos
+app.use(express.static(__dirname, {
+    setHeaders: (res, filePath) => {
+        // Configura o tipo MIME correto para arquivos PDF
+        if (filePath.endsWith('.pdf')) {
+            res.setHeader('Content-Type', 'application/pdf');
         }
+    }
+}));
+
+// Rota para a página inicial
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Rota para o livro PDF
+app.get('/books/memoriasBras.pdf', (req, res) => {
+    const pdfPath = path.join(__dirname, 'books', 'memoriasBras.pdf');
+    
+    // Verifica se o arquivo existe
+    if (fs.existsSync(pdfPath)) {
+        res.sendFile(pdfPath);
+    } else {
+        res.status(404).send('Livro não encontrado');
+    }
+});
+
+// Rota para verificar a saúde da aplicação
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Rota para lidar com erros 404
+app.use((req, res) => {
+    res.status(404).json({ error: 'Rota não encontrada' });
+});
+
+// Middleware para tratamento de erros
+app.use((err, req, res, next) => {
+    console.error('Erro:', err);
+    res.status(500).json({ 
+        error: 'Ocorreu um erro no servidor',
+        message: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
 });
 
-server.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}/`);
-    console.log('Press Ctrl+C to stop the server');
+// Iniciar o servidor
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Servidor rodando em http://localhost:${PORT}`);
+    console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
+});
+
+// Tratamento de erros não capturados
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Rejeição não tratada em:', promise, 'motivo:', reason);
+    // Encerra o processo com falha para que o gerenciador de processos possa reiniciá-lo
+    process.exit(1);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('Exceção não capturada:', error);
+    // Encerra o processo com falha para que o gerenciador de processos possa reiniciá-lo
+    process.exit(1);
 });

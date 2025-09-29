@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ReadTok - PDF Reader Demo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-color: #f5f5f5;
+            --text-color: #1f2937;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+            --card-bg: #ffffff;
+            --progress-fill: #2563eb;
+            --progress-bg: #e5e7eb;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #111827;
+            --text-color: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --border-color: #374151;
+            --card-bg: #1f2937;
+            --progress-bg: #374151;
+        }
+
+        [data-theme="sepia"] {
+            --bg-color: #f4ecd8;
+            --text-color: #5b4636;
+            --text-secondary: #8c7b6d;
+            --border-color: #d4c4a8;
+            --card-bg: #e6d5b8;
+            --progress-bg: #d4c4a8;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overscroll-behavior-y: none;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .screen {
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            background-color: var(--bg-color);
+            transition: opacity 0.3s ease;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* Reader Screen */
+        #reader-screen {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+        }
+
+        .reader-content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            padding: 1rem;
+            padding-bottom: calc(140px + env(safe-area-inset-bottom, 24px));
+            display: block;
+            scroll-snap-type: y mandatory;
+            scroll-behavior: auto;
+        }
+
+        .page {
+            min-height: 100%;
+            width: 100%;
+            padding: 2rem;
+            margin-bottom: 1rem;
+            background-color: var(--card-bg);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+            scroll-snap-align: start;
+            scroll-margin-top: 1rem;
+            font-size: 1.25rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+            transition: transform 280ms ease, opacity 280ms ease, box-shadow 280ms ease;
+            opacity: 0.92;
+        }
+
+        .page.current {
+            transform: translateY(0) scale(1.0);
+            opacity: 1;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+        }
+
+        .page-content {
+            font-size: 1.25rem;
+            line-height: 1.6;
+            color: var(--text-color);
+        }
+
+        .page-title {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--text-color);
+        }
+
+        .dark-mode .page {
+            background: #1e1e1e;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .dark-mode .page-title {
+            color: #ffffff;
+        }
+
+        /* Bottom Info Panel */
+        .info-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--card-bg);
+            padding: 1rem;
+            border-top: 1px solid var(--border-color);
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            z-index: 20;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .info-panel.visible {
+            transform: translateY(0);
+        }
+
+        .dark-mode .info-panel {
+            background: rgba(30, 30, 30, 0.95);
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .info-text h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .info-text p {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .dark-mode .info-text p {
+            color: #aaa;
+        }
+
+        /* Reader Controls */
+        .reader-controls {
+            position: fixed;
+            bottom: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 30;
+            gap: 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .dark-mode .reader-controls {
+            background: rgba(30, 30, 30, 0.9);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            font-size: 1.25rem;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 0;
+        }
+
+        .dark-mode .control-btn {
+            color: #e0e0e0;
+        }
+
+        .control-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .control-btn:active {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .dark-mode .control-btn:active {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .page-info {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            min-width: 5rem;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+        }
+
+        .progress-percentage {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            opacity: 0.8;
+        }
+
+        /* Action Sheet */
+        .action-sheet-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.35);
+            z-index: 25;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .action-sheet-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .action-sheet {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--card-bg);
+            border-top-left-radius: 18px;
+            border-top-right-radius: 18px;
+            box-shadow: 0 -8px 24px rgba(0,0,0,0.15);
+            transform: translateY(100%);
+            transition: transform 280ms ease;
+            z-index: 30;
+            padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 24px));
+            max-height: 80vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .dark-mode .action-sheet {
+            background: #1e1e1e;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .action-sheet.visible {
+            transform: translateY(0%);
+        }
+
+        .action-sheet-handle {
+            width: 44px;
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
+            margin: 8px auto 12px;
+        }
+
+        .dark-mode .action-sheet-handle {
+            background: #555;
+        }
+
+        .action-sheet-header {
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--text-color);
+            margin-bottom: 8px;
+            padding: 0 8px;
+        }
+
+        .dark-mode .action-sheet-header {
+            color: #e0e0e0;
+        }
+
+        .action-sheet-item {
+            width: 100%;
+            text-align: left;
+            padding: 12px 10px;
+            border: none;
+            background: transparent;
+            border-radius: 10px;
+            font-size: 15px;
+            color: var(--text-color);
+            cursor: pointer;
+            display: block;
+        }
+
+        .action-sheet-item:hover {
+            background: rgba(0,0,0,0.04);
+        }
+
+        .dark-mode .action-sheet-item {
+            color: #e0e0e0;
+        }
+
+        .action-sheet-item:active {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .dark-mode .action-sheet-item:active {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Settings Button */
+        .settings-btn {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            width: 2.75rem;
+            height: 2.75rem;
+            border-radius: 50%;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            z-index: 30;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .dark-mode .settings-btn {
+            background: rgba(30, 30, 30, 0.9);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .settings-btn:active {
+            transform: scale(0.95);
+        }
+
+        .settings-btn svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            fill: var(--text-color);
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .page {
+                font-size: 1.05rem;
+                padding: 1.25rem;
+            }
+            
+            .page-title {
+                font-size: 1.5rem;
+            }
+            
+            .reader-controls {
+                bottom: 1rem;
+                padding: 0.5rem 0.75rem;
+            }
+            
+            .control-btn {
+                width: 2.25rem;
+                height: 2.25rem;
+            }
+        }
+    </style>
+    <script>
+        // Initialize theme from localStorage or system preference
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            } else if (prefersDark) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        }
+        
+        // Run theme initialization when the page loads
+        document.addEventListener('DOMContentLoaded', initTheme);
+    </script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Reader Screen -->
+        <div id="reader-screen" class="screen active">
+            <button id="settings-btn" class="settings-btn">
+                <svg viewBox="0 0 24 24">
+                    <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l1.03-.82c.2-.15.25-.42.12-.64l-1.01-1.68c-.12-.22-.39-.3-.61-.22l-1.19.5c-.69-.52-1.46-.93-2.3-1.19l-.22-1.23c-.05-.24-.25-.41-.49-.41H12.2c-.24 0-.44.17-.49.41l-.22 1.23c-.84.26-1.61.67-2.3 1.19l-1.19-.5c-.23-.1-.5 0-.61.22l-1.01 1.67c-.13.22-.08.49.12.64l1.03.82c-.05.3-.09.63-.09.94 0 .31.03.64.07.94l-1.03.82c-.2.15-.25.42-.12.64l1.01 1.68c.12.22.39.3.61.22l1.19-.5c.69.52 1.46.93 2.3 1.19l.22 1.23c.05.24.25.41.49.41h2.02c.24 0 .44-.17.49-.41l.22-1.23c.84-.26 1.61-.67 2.3-1.19l1.19.5c.23.1.5 0 .61-.22l1.01-1.68c.13-.22.08-.49-.12-.64l-1.01-.82zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+                </svg>
+            </button>
+
+            <div class="reader-content" id="reader-content">
+                <!-- Pages will be dynamically inserted here -->
+            </div>
+
+            <!-- Bottom Info Panel -->
+            <div class="info-panel" id="info-panel">
+                <div class="info-text">
+                    <h2 id="info-title">Sample Document</h2>
+                    <p id="info-subtitle">Page 1 of 3</p>
+                </div>
+            </div>
+
+            <!-- Reader Controls -->
+            <div class="reader-controls">
+                <button id="prev-page" class="control-btn" disabled>
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                    </svg>
+                </button>
+                <div class="page-info">
+                    <span id="current-page">1</span>/<span id="total-pages">3</span>
+                    <span class="progress-percentage">(0%)</span>
+                </div>
+                <button id="next-page" class="control-btn">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Slide-up Action Sheet -->
+            <div id="action-sheet-overlay" class="action-sheet-overlay"></div>
+            <div id="action-sheet" class="action-sheet" aria-hidden="true">
+                <div class="action-sheet-handle" aria-hidden="true"></div>
+                <div class="action-sheet-header">Options</div>
+                <button class="action-sheet-item" id="action-toggle-dark-mode">Switch to Dark Mode</button>
+                <button class="action-sheet-item" id="action-add-pdfs">Add PDFs</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const readerContent = document.getElementById('reader-content');
+            const prevPageBtn = document.getElementById('prev-page');
+            const nextPageBtn = document.getElementById('next-page');
+            const currentPageEl = document.getElementById('current-page');
+            const totalPagesEl = document.getElementById('total-pages');
+            const progressPercentage = document.querySelector('.progress-percentage');
+            const infoPanel = document.getElementById('info-panel');
+            const infoTitle = document.getElementById('info-title');
+            const infoSubtitle = document.getElementById('info-subtitle');
+            const settingsBtn = document.getElementById('settings-btn');
+            const actionSheet = document.getElementById('action-sheet');
+            const actionSheetOverlay = document.getElementById('action-sheet-overlay');
+            const toggleDarkModeBtn = document.getElementById('action-toggle-dark-mode');
+            const addPdfsBtn = document.getElementById('action-add-pdfs');
+            
+            // State
+            let currentPage = 1;
+            const totalPages = 3;
+            
+            // Dummy content for the demo
+            const dummyPages = [
+                {
+                    title: "Introduction",
+                    content: "This is a demo of the ReadTok PDF reader interface.\n\nSwipe up or tap the bottom of the screen to see document information.\n\nUse the navigation buttons at the bottom to move between pages.\n\nTap the settings icon in the top-right corner to access more options."
+                },
+                {
+                    title: "Features",
+                    content: "Key features of this reader include:\n\n• Clean, modern interface\n• Smooth page transitions\n• Dark mode support\n• Responsive design for all devices\n• Intuitive navigation controls\n\nTry swiping up from the bottom to see the document info panel."
+                },
+                {
+                    title: "Get Started",
+                    content: "To start using this with your own PDFs:\n\n1. Tap the settings icon (⚙️)\n2. Select 'Add PDFs'\n3. Choose your documents\n\nYour reading progress will be automatically saved.\n\nEnjoy your reading experience!"
+                }
+            ];
+
+            // Initialize the reader
+            function initReader() {
+                renderPages();
+                updateUI();
+                
+                // Show info panel on first load
+                setTimeout(() => {
+                    infoPanel.classList.add('visible');
+                    setTimeout(() => infoPanel.classList.remove('visible'), 3000);
+                }, 1000);
+            }
+
+            // Render all pages
+            function renderPages() {
+                readerContent.innerHTML = '';
+                
+                dummyPages.forEach((page, index) => {
+                    const pageEl = document.createElement('div');
+                    pageEl.className = 'page';
+                    pageEl.id = `page-${index + 1}`;
+                    
+                    const pageContent = document.createElement('div');
+                    pageContent.className = 'page-content';
+                    
+                    const titleEl = document.createElement('h1');
+                    titleEl.className = 'page-title';
+                    titleEl.textContent = page.title;
+                    
+                    const contentEl = document.createElement('div');
+                    contentEl.innerHTML = page.content.replace(/\n/g, '<br>');
+                    
+                    pageContent.appendChild(titleEl);
+                    pageContent.appendChild(contentEl);
+                    pageEl.appendChild(pageContent);
+                    readerContent.appendChild(pageEl);
+                });
+                
+                // Scroll to current page
+                scrollToPage(currentPage);
+            }
+
+            // Scroll to a specific page
+            function scrollToPage(pageNumber) {
+                const pageEl = document.getElementById(`page-${pageNumber}`);
+                if (pageEl) {
+                    pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+
+            // Update UI elements
+            function updateUI() {
+                // Update page indicators
+                currentPageEl.textContent = currentPage;
+                totalPagesEl.textContent = totalPages;
+                
+                // Update progress percentage
+                const progress = Math.round((currentPage / totalPages) * 100);
+                progressPercentage.textContent = `(${progress}%)`;
+                
+                // Update button states
+                prevPageBtn.disabled = currentPage === 1;
+                nextPageBtn.disabled = currentPage === totalPages;
+                
+                // Update info panel
+                infoTitle.textContent = `Page ${currentPage} of ${totalPages}`;
+                infoSubtitle.textContent = dummyPages[currentPage - 1].title;
+            }
+
+            // Event Listeners
+            prevPageBtn.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    scrollToPage(currentPage);
+                    updateUI();
+                }
+            });
+
+            nextPageBtn.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    scrollToPage(currentPage);
+                    updateUI();
+                }
+            });
+
+            // Swipe detection for mobile
+            let touchStartY = 0;
+            let touchEndY = 0;
+
+            document.addEventListener('touchstart', (e) => {
+                touchStartY = e.changedTouches[0].screenY;
+            }, false);
+
+            document.addEventListener('touchend', (e) => {
+                touchEndY = e.changedTouches[0].screenY;
+                handleSwipe();
+            }, false);
+
+            function handleSwipe() {
+                const diff = touchStartY - touchEndY;
+                
+                // Swipe up (show info panel)
+                if (diff > 50) {
+                    infoPanel.classList.add('visible');
+                    setTimeout(() => infoPanel.classList.remove('visible'), 3000);
+                }
+                // Swipe down (hide info panel)
+                else if (diff < -50) {
+                    infoPanel.classList.remove('visible');
+                }
+            }
+
+            // Settings button click
+            settingsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                actionSheetOverlay.classList.add('visible');
+                actionSheet.classList.add('visible');
+                document.body.style.overflow = 'hidden';
+            });
+
+            // Close action sheet when clicking outside
+            actionSheetOverlay.addEventListener('click', () => {
+                actionSheetOverlay.classList.remove('visible');
+                actionSheet.classList.remove('visible');
+                document.body.style.overflow = '';
+            });
+
+            // Toggle theme
+            toggleDarkModeBtn.addEventListener('click', () => {
+                const currentTheme = document.documentElement.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                
+                // Update button text
+                toggleDarkModeBtn.textContent = `Switch to ${currentTheme === 'dark' ? 'Dark' : 'Light'} Mode`;
+                
+                // Close action sheet
+                actionSheetOverlay.classList.remove('visible');
+                actionSheet.classList.remove('visible');
+                document.body.style.overflow = '';
+            });
+
+            // Add PDFs button
+            addPdfsBtn.addEventListener('click', () => {
+                alert('In a real app, this would open a file picker to add PDFs.');
+                // Close action sheet
+                actionSheetOverlay.classList.remove('visible');
+                actionSheet.classList.remove('visible');
+                document.body.style.overflow = '';
+            });
+
+            // Initialize theme and update button text
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            toggleDarkModeBtn.textContent = `Switch to ${currentTheme === 'dark' ? 'Light' : 'Dark'} Mode`;
+
+            // Initialize the reader
+            initReader();
+        });
+    </script>
+</body>
+</html>

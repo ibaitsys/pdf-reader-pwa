@@ -10,20 +10,18 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Upload Screen -->
-        <div id="upload-screen" class="screen active">
-            <div class="upload-container">
-                <h1>ReadTok</h1>
-                <p class="subtitle">Upload up to 4 PDFs to read in alternating chunks</p>
-                <div class="upload-box" id="drop-zone">
-                    <input type="file" id="file-input" accept=".pdf" multiple style="display: none;">
-                    <img src="assets/upload-icon.svg" alt="Upload" class="upload-icon">
-                    <p>Drag & drop your PDF here or</p>
-                    <label for="file-input" id="browse-btn" class="btn" role="button" tabindex="0">Browse Files</label>
-                </div>
-                <div class="recent-docs" id="recent-docs">
-                    <h3>Recent Documents</h3>
-                    <!-- Will be populated by JavaScript -->
+        <!-- Home Screen -->
+        <div id="home-screen" class="screen active">
+            <div class="home-container">
+                <h1>Memórias Póstumas de Brás Cubas</h1>
+                <p class="subtitle">Por Machado de Assis</p>
+                
+                <div class="book-cover" id="open-book">
+                    <div class="book-cover-content">
+                        <h2>Memórias Póstumas de Brás Cubas</h2>
+                        <p>Machado de Assis</p>
+                        <button class="btn read-now">Ler Agora</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -112,6 +110,16 @@
         </div>
     </div>
 
+    <script>
+        // Redireciona para o leitor de PDF automaticamente
+        window.addEventListener('load', function() {
+            // Pequeno atraso para garantir que tudo esteja carregado
+            setTimeout(function() {
+                const event = new Event('DOMContentLoaded');
+                document.dispatchEvent(event);
+            }, 500);
+        });
+    </script>
     <script src="js/app.js"></script>
 </body>
 </html>

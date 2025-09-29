@@ -377,23 +377,43 @@ let touchActive = false;
 const SWIPE_THRESHOLD_PX = 40; // min vertical movement to trigger
 const SWIPE_HORIZONTAL_TOLERANCE_PX = 60; // ignore if too horizontal
 
+// Caminho fixo para o livro
+const LIVRO_FIXO = {
+    nome: "Memórias Póstumas de Brás Cubas",
+    autor: "Machado de Assis",
+    caminho: "books/memoriasBras.pdf"
+};
+
 // Initialize the app
 function init() {
-    console.log('Initializing app...');
+    console.log('Inicializando o leitor...');
     
-    // Check if required elements exist
-    if (!browseBtn) console.error('Browse button not found');
-    if (!fileInput) console.error('File input not found');
-    if (!dropZone) console.error('Drop zone not found');
-    
+    // Configura os ouvintes de eventos
     setupEventListeners();
+    
+    // Carrega as configurações
     loadSettings();
+    
+    // Aplica o plano de fundo
     applyBackgroundFromSettings();
-    loadRecentDocuments();
-    // Initialize info panel with starting values
+    
+    // Inicializa o painel de informações
     updateInfoPanel();
     
-    console.log('App initialized');
+    // Configura o botão de leitura (opcional, já que vamos carregar automaticamente)
+    const readNowButton = document.querySelector('.read-now');
+    if (readNowButton) {
+        readNowButton.addEventListener('click', () => {
+            console.log('Iniciando leitura do livro:', LIVRO_FIXO.nome);
+            processFile(LIVRO_FIXO.caminho);
+        });
+    }
+    
+    // Carrega o livro automaticamente
+    console.log('Carregando livro automaticamente:', LIVRO_FIXO.nome);
+    processFile(LIVRO_FIXO.caminho);
+    
+    console.log('Leitor pronto');
 }
 
 // Set up event listeners
@@ -713,45 +733,71 @@ async function handleDrop(e) {
     }
 }
 
-// Process the uploaded PDF file
-async function processFile(file) {
+// Process the PDF file
+async function processFile(filePathOrFile) {
     try {
         // Show loading state
-        dropZone.innerHTML = '<div class="loading">Processing PDF...</div>';
+        const loadingScreen = document.getElementById('home-screen');
+        if (loadingScreen) {
+            const bookTitle = typeof filePathOrFile === 'string' 
+                ? filePathOrFile.split('/').pop().replace(/\.pdf$/i, '').replace(/[-_]/g, ' ')
+                : 'o livro';
+            loadingScreen.innerHTML = `
+                <div class="loading">
+                    <div>Carregando ${bookTitle}...</div>
+                    <div class="loading-subtitle">Isso pode levar alguns segundos</div>
+                </div>`;
+        }
         
-        // Read the file as ArrayBuffer
-        const arrayBuffer = await file.arrayBuffer();
+        let loadingTask;
+        let fileName = '';
         
-        // Load the PDF document
-        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        if (typeof filePathOrFile === 'string') {
+            // Se for um caminho de arquivo
+            fileName = filePathOrFile.split('/').pop() || 'livro.pdf';
+            loadingTask = pdfjsLib.getDocument(filePathOrFile);
+        } else {
+            // Se for um objeto File (compatibilidade com o código existente)
+            fileName = filePathOrFile.name;
+            const arrayBuffer = await filePathOrFile.arrayBuffer();
+            loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        }
+        
         currentPdf = await loadingTask.promise;
         // We'll compute total screens dynamically while rendering
         totalPages = 0;
         
         // Update UI
-        documentTitle.textContent = file.name.replace(/\.pdf$/i, '');
+        documentTitle.textContent = fileName.replace(/\.pdf$/i, '');
         totalPagesEl.textContent = '0';
         
         // Store document info
         currentDocument = {
-            name: file.name,
+            name: fileName,
             lastOpened: new Date().toISOString(),
             pages: [],
             currentPage: 1,
             progress: 0,
-            fileSize: file.size,
-            lastModified: file.lastModified
+            fileSize: 0 // Não temos o tamanho do arquivo quando carregamos por caminho
         };
         
         // Render the first few pages
         await renderPages();
         
         // Switch to reader view
-        uploadScreen.classList.remove('active');
-        readerScreen.classList.add('active');
+        const homeScreen = document.getElementById('home-screen');
+        if (homeScreen) {
+            homeScreen.classList.remove('active');
+        } else if (uploadScreen) {
+            uploadScreen.classList.remove('active');
+        }
         
-        // Save to recent documents
-        saveToRecentDocuments(currentDocument);
+        if (readerScreen) {
+            readerScreen.classList.add('active');
+        }
+        
+        // Save to recent documents (opcional, já que temos apenas um livro)
+        // saveToRecentDocuments(currentDocument);
         
     } catch (error) {
         console.error('Error processing PDF:', error);

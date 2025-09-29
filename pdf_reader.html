@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Reader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .toolbar {
+            background-color: #2c3e50;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .toolbar button {
+            background: none;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .toolbar button:hover {
+            background-color: #34495e;
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: white;
+            border-right: 1px solid #ddd;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        .thumbnail {
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+            padding: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .thumbnail.active {
+            border-color: #3498db;
+            background-color: #ebf5fb;
+        }
+
+        .thumbnail img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .document-viewer {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            background-color: #808080; /* Gray background to simulate paper */
+        }
+
+        .document-page {
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            margin: 20px 0;
+            width: 100%;
+            max-width: 800px;
+            min-height: 1000px;
+            padding: 40px;
+            position: relative;
+        }
+
+        .page-number {
+            position: absolute;
+            bottom: 20px;
+            right: 40px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .dummy-text {
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .dummy-title {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            text-align: center;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .dummy-subtitle {
+            font-size: 18px;
+            margin: 25px 0 15px;
+            color: #3498db;
+        }
+
+        .dummy-image {
+            width: 100%;
+            height: 200px;
+            background-color: #e0e0e0;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #888;
+            font-style: italic;
+        }
+
+        .page-controls {
+            display: flex;
+            justify-content: center;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-top: 1px solid #ddd;
+            gap: 10px;
+        }
+
+        .page-controls button {
+            padding: 5px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .page-controls button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            display: flex;
+            align-items: center;
+            margin: 0 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <button title="Open File">📂 Open</button>
+        <button title="Save">💾 Save</button>
+        <div style="flex: 1;"></div>
+        <button title="Zoom Out">🔍-</button>
+        <span>100%</span>
+        <button title="Zoom In">🔍+</button>
+        <button title="Fit Width">↔️ Fit Width</button>
+        <button title="Fullscreen">⛶ Fullscreen</button>
+    </div>
+
+    <div class="main-content">
+        <div class="sidebar">
+            <h3>Pages</h3>
+            <div class="thumbnail active">
+                <div style="background-color: #f8f9fa; height: 120px; display: flex; align-items: center; justify-content: center; color: #888;">
+                    Page 1
+                </div>
+            </div>
+            <div class="thumbnail">
+                <div style="background-color: #f8f9fa; height: 120px; display: flex; align-items: center; justify-content: center; color: #888;">
+                    Page 2
+                </div>
+            </div>
+            <div class="thumbnail">
+                <div style="background-color: #f8f9fa; height: 120px; display: flex; align-items: center; justify-content: center; color: #888;">
+                    Page 3
+                </div>
+            </div>
+        </div>
+
+        <div class="document-viewer">
+            <div class="document-page">
+                <h1 class="dummy-title">Sample PDF Document</h1>
+                
+                <p class="dummy-text">
+                    This is a sample PDF document with dummy content. In a real PDF reader, this would display the actual content of your PDF file.
+                </p>
+                
+                <h2 class="dummy-subtitle">Introduction</h2>
+                
+                <p class="dummy-text">
+                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam auctor, nisl eget ultricies tincidunt, 
+                    nunc nisl aliquam nunc, vitae aliquam nisl nunc vitae nisl. Sed vitae nisl eget nunc aliquam tincidunt.
+                </p>
+                
+                <div class="dummy-image">[Sample Image]</div>
+                
+                <h2 class="dummy-subtitle">Main Content</h2>
+                
+                <p class="dummy-text">
+                    Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud 
+                    exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+                </p>
+                
+                <p class="dummy-text">
+                    Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. 
+                    Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+                </p>
+                
+                <div class="page-number">Page 1 of 3</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-controls">
+        <button disabled>⏮️ First</button>
+        <button disabled>⬅️ Previous</button>
+        <div class="page-info">Page <input type="number" value="1" min="1" max="3" style="width: 40px; margin: 0 5px;"> of 3</div>
+        <button>Next ➡️</button>
+        <button>Last ⏭️</button>
+    </div>
+
+    <script>
+        // Simple interactivity for the demo
+        document.addEventListener('DOMContentLoaded', function() {
+            // Handle page navigation
+            const pageInput = document.querySelector('.page-controls input');
+            const prevBtn = document.querySelector('.page-controls button:nth-child(2)');
+            const nextBtn = document.querySelector('.page-controls button:nth-last-child(2)');
+            const firstBtn = document.querySelector('.page-controls button:first-child');
+            const lastBtn = document.querySelector('.page-controls button:last-child');
+            const thumbnails = document.querySelectorAll('.thumbnail');
+            
+            let currentPage = 1;
+            const totalPages = 3;
+            
+            function updatePageDisplay() {
+                // Update page number input
+                pageInput.value = currentPage;
+                
+                // Update button states
+                prevBtn.disabled = currentPage === 1;
+                firstBtn.disabled = currentPage === 1;
+                nextBtn.disabled = currentPage === totalPages;
+                lastBtn.disabled = currentPage === totalPages;
+                
+                // Update active thumbnail
+                thumbnails.forEach((thumb, index) => {
+                    if (index + 1 === currentPage) {
+                        thumb.classList.add('active');
+                    } else {
+                        thumb.classList.remove('active');
+                    }
+                });
+                
+                // In a real app, you would load the actual page content here
+                document.querySelector('.page-number').textContent = `Page ${currentPage} of ${totalPages}`;
+            }
+            
+            // Navigation event listeners
+            prevBtn.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    updatePageDisplay();
+                }
+            });
+            
+            nextBtn.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    updatePageDisplay();
+                }
+            });
+            
+            firstBtn.addEventListener('click', () => {
+                currentPage = 1;
+                updatePageDisplay();
+            });
+            
+            lastBtn.addEventListener('click', () => {
+                currentPage = totalPages;
+                updatePageDisplay();
+            });
+            
+            pageInput.addEventListener('change', (e) => {
+                let page = parseInt(e.target.value);
+                if (page < 1) page = 1;
+                if (page > totalPages) page = totalPages;
+                currentPage = page;
+                updatePageDisplay();
+            });
+            
+            // Thumbnail click handlers
+            thumbnails.forEach((thumb, index) => {
+                thumb.addEventListener('click', () => {
+                    currentPage = index + 1;
+                    updatePageDisplay();
+                });
+            });
+            
+            // Initialize the display
+            updatePageDisplay();
+        });
+    </script>
+</body>
+</html>
