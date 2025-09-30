@@ -381,7 +381,7 @@ const SWIPE_HORIZONTAL_TOLERANCE_PX = 60; // ignore if too horizontal
 const LIVRO_FIXO = {
     nome: "Memórias Póstumas de Brás Cubas",
     autor: "Machado de Assis",
-    caminho: "books/memoriasBras.pdf"
+    caminho: "/books/memoriasBras.pdf"
 };
 
 // Initialize the app
